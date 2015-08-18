@@ -12,8 +12,11 @@ import javax.swing.border.LineBorder;
 import java.awt.event.ActionListener;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.PrintWriter;
+import java.lang.reflect.InvocationTargetException;
 import java.net.Socket;
 import java.net.UnknownHostException;
 import java.awt.event.ActionEvent;
@@ -23,20 +26,23 @@ public class WindowFrame {
 
 	private JFrame frmGrupaTeamspeakMessenger;
 	private JTextField textField;
-	public String nick;
+	public String nick = null;
 	JLabel lbl_shownick = new JLabel();
 	String address = "localhost";
 	Integer portNumber = 3058;
 	Socket socket;
-	PrintWriter out;
-	BufferedReader in;
+	private static PrintWriter out;
+	private static BufferedReader in;
 	JTextArea panel_1;
-	static Integer counter = 0;
+	Thread connection;
+	private static boolean connected = false;
 
 	/**
 	 * Launch the application.
+	 * @throws InterruptedException 
+	 * @throws InvocationTargetException 
 	 */
-	public static void main(String[] args) {
+	public static void main(String[] args) throws InvocationTargetException, InterruptedException {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
@@ -44,23 +50,19 @@ public class WindowFrame {
 					
 					window.frmGrupaTeamspeakMessenger.setVisible(true);
 					
-					window.panel_1.append(window.counter.toString());
-					
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
 			}
 		});
-		while(true) {
-			
-		}
 	}
 
 	/**
 	 * Create the application.
 	 */
 	public WindowFrame() {
-		setupConnection();
+		connection = new Thread(new MSGConnection());
+		connection.start();
 		initialize();
 	}
 	
@@ -114,10 +116,8 @@ public class WindowFrame {
 		btnNewButton.addActionListener(new ActionListener() {
 			public void actionPerformed(ActionEvent e) {
 				send_message(textField.getText().toString());
+				panel_1.append(textField.getText().toString());
 				textField.setText("");
-				counter++;
-				panel_1.append(counter.toString());
-				
 			}
 		});
 		btnNewButton.setBounds(399, 28, 80, 26);
@@ -134,17 +134,30 @@ public class WindowFrame {
 		frmGrupaTeamspeakMessenger.getContentPane().add(lbl_shownick);
 	}
 	
-	private void setupConnection() {
-		try {
-			socket = new Socket(address, portNumber);
-			out = new PrintWriter(socket.getOutputStream(), true);
-			in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-		} catch (UnknownHostException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
+	
+	private class MSGConnection implements Runnable{
+		
+		public MSGConnection() {
+			try {
+				socket = new Socket(address, portNumber);
+			} catch (UnknownHostException e) {
+				e.printStackTrace();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
+
+		@Override
+		public void run() {
+			while(true) {
+				try {
+					out = new PrintWriter(socket.getOutputStream(), true);
+					in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+					panel_1.append(in.readLine());
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}	
 	}
 }
